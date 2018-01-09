@@ -1,0 +1,307 @@
+---
+## Example AWS WAF rule set covering generic OWASP Top 10 vulnerability
+## areas with PHP backend specific misconfigurations.
+##
+## Copyright 2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+## Licensed under the Amazon Software License (the "License"). You may not use this file except in compliance with the License.
+## A copy of the License is located at http://aws.amazon.com/asl/ or in the "license" file accompanying this file.
+## This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied.
+## See the License for the specific language governing permissions and limitations under the License.
+##
+## Changelog:
+## 2017-06-27 - Initial release
+##
+## Repository:
+## https://github.com/awslabs/aws-waf-sample
+##
+## Dependencies:
+## none
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS WAF Basic OWASP Example Rule Set
+
+## ::PARAMETERS::
+## Template parameters to be configured by user
+Parameters:
+  OperatorWANIP:
+    Type: String
+    Description: The WAN IP that your (the operator) requests will be connecting/attacking from
+
+## ::RESOURCES::
+## Resources used in this solution
+Resources:
+
+  WAFTstingVPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: 192.168.0.0/23
+      EnableDnsSupport: 'false'
+      EnableDnsHostnames: 'false'
+      InstanceTenancy: 'default'
+      Tags:
+        - Key: Name
+          Value: WAFTstingVPC
+
+  WAFTstingIGW:
+    Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+        - Key: Name
+          Value: WAFTstingIGW
+
+  WAFTstingAttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: WAFTstingVPC
+      InternetGatewayId:
+        Ref: WAFTstingIGW
+
+  WAFTstingDhcpOptions:
+    Type: "AWS::EC2::DHCPOptions"
+    Properties:
+      DomainName: example.com
+      DomainNameServers:
+        - 208.67.222.222
+        - 208.67.220.220
+      Tags:
+        -
+          Key: Name
+          Value: WAFTstingDhcpOptions
+
+  WAFTstingVPCDHCPOptionsAssociation:
+    Type: AWS::EC2::VPCDHCPOptionsAssociation
+    Properties:
+      VpcId:
+        Ref: WAFTstingVPC
+      DhcpOptionsId:
+        Ref: WAFTstingDhcpOptions
+
+  WAFTstingPubSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: WAFTstingVPC
+      CidrBlock: 192.168.0.0/24
+      AvailabilityZone: "us-west-2a"
+      MapPublicIpOnLaunch: "true"
+      Tags:
+      - Key: Name
+        Value: WAFTstingPubSubnetA
+
+  WAFTstingPubSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: WAFTstingVPC
+      CidrBlock: 192.168.1.0/24
+      AvailabilityZone: "us-west-2c"
+      MapPublicIpOnLaunch: "true"
+      Tags:
+      - Key: Name
+        Value: WAFTstingPubSubnetC
+
+  WAFTstingPubRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: WAFTstingVPC
+      Tags:
+      - Key: Name
+        Value: WAFTstingPubRT
+
+  WAFTstingRoutePub:
+    Type: AWS::EC2::Route
+    DependsOn: WAFTstingIGW
+    Properties:
+      RouteTableId:
+        Ref: WAFTstingPubRT
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: WAFTstingIGW
+
+  WAFTstingSubnetRouteTableAssociationA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: WAFTstingPubSubnetA
+      RouteTableId:
+        Ref: WAFTstingPubRT
+
+  WAFTstingSubnetRouteTableAssociationC:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: WAFTstingPubSubnetC
+      RouteTableId:
+        Ref: WAFTstingPubRT
+
+  WAFTstingSecurityGroupPub:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to client host
+      VpcId:
+        Ref: WAFTstingVPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '80'
+        ToPort: '80'
+        CidrIp: !Join ['/', [!Ref OperatorWANIP, '32']]
+      SecurityGroupEgress:
+      - IpProtocol: '-1'
+        FromPort: '0'
+        ToPort: '0'
+        CidrIp: 0.0.0.0/0
+
+  WAFTstingSecurityGroupWebgoat:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to client host
+      VpcId:
+        Ref: WAFTstingVPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '80'
+        ToPort: '80'
+        CidrIp: 192.168.0.0/23
+      SecurityGroupEgress:
+      - IpProtocol: '-1'
+        FromPort: '0'
+        ToPort: '0'
+        CidrIp: 0.0.0.0/0
+
+  Webgoat:
+    Type: "AWS::EC2::Instance"
+    DependsOn: WAFTstingRoutePub
+    Properties:
+      ImageId: 'ami-25cf1c5d'
+      InstanceType: 't2.medium'
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: 'true'
+          DeviceIndex: "0"
+          GroupSet:
+            - Ref: WAFTstingSecurityGroupWebgoat
+          SubnetId:
+            Ref: WAFTstingPubSubnetC
+      UserData: 'IyEvYmluL2Jhc2gKc3VkbyBhcHQtZ2V0IHVwZGF0ZSBzdWRvIGFwdC1nZXQgfHwgdHJ1ZQpzdWRvIERFQklBTl9GUk9OVEVORD1ub25pbnRlcmFjdGl2ZSBhcHQtZ2V0IGluc3RhbGwgLXkgZG9ja2VyLmlvCnN1ZG8gZG9ja2VyIHJ1biAtZCAtLW5hbWUgd2ViZ29hdCAtcCA4MDo4MDgwIHdlYmdvYXQvd2ViZ29hdC03LjEK'
+
+  WAFTstingALB:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Subnets:
+        - Ref: WAFTstingPubSubnetA
+        - Ref: WAFTstingPubSubnetC
+      SecurityGroups:
+        - Ref: WAFTstingSecurityGroupPub
+      Type: 'application'
+      IpAddressType: 'ipv4'
+      Scheme: 'internet-facing'
+      Tags:
+        - Key: Name
+          Value: WAFTstingALB
+  WAFTstingListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn:
+          Ref: WAFTstingTargetGroup
+      LoadBalancerArn:
+        Ref: WAFTstingALB
+      Port: '80'
+      Protocol: HTTP
+  WAFTstingTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 60
+      UnhealthyThresholdCount: 10
+      HealthCheckPath: /WebGoat
+      Matcher:
+        HttpCode: '200,302'
+      Name: WAFTstingTargetGroup
+      Port: 80
+      Protocol: HTTP
+      VpcId:
+        Ref: WAFTstingVPC
+      Tags:
+        - Key: Name
+          Value: WAFTstingTargetGroup
+      Targets:
+        - Id:
+            Ref: Webgoat
+          Port: 80
+
+## 1.
+## OWASP Top 10 A1
+## Mitigate SQL Injection Attacks
+## Matches attempted SQLi patterns in the URI, QUERY_STRING, BODY, COOKIES
+  wafrSQLiSet:
+    Type: AWS::WAFRegional::SqlInjectionMatchSet
+    Properties:
+      Name: 'waf-tsting-detect-sqli'
+      SqlInjectionMatchTuples:
+        - FieldToMatch:
+            Type: URI
+          TextTransformation: URL_DECODE
+        - FieldToMatch:
+            Type: URI
+          TextTransformation: HTML_ENTITY_DECODE
+        - FieldToMatch:
+            Type: QUERY_STRING
+          TextTransformation: URL_DECODE
+        - FieldToMatch:
+            Type: QUERY_STRING
+          TextTransformation: HTML_ENTITY_DECODE
+        - FieldToMatch:
+            Type: QUERY_STRING
+          TextTransformation: CMD_LINE
+        - FieldToMatch:
+            Type: BODY
+          TextTransformation: URL_DECODE
+        - FieldToMatch:
+            Type: BODY
+          TextTransformation: HTML_ENTITY_DECODE
+        - FieldToMatch:
+            Type: BODY
+          TextTransformation: CMD_LINE
+        - FieldToMatch:
+            Type: HEADER
+            Data: cookie
+          TextTransformation: URL_DECODE
+        - FieldToMatch:
+            Type: HEADER
+            Data: cookie
+          TextTransformation: HTML_ENTITY_DECODE
+  wafrSQLiRule:
+    Type: AWS::WAFRegional::Rule
+    Properties:
+      MetricName: 'WAFTstingmitigatesqli'
+      Name: 'waf-tsting-mitigate-sqli'
+      Predicates:
+        - Type: SqlInjectionMatch
+          Negated: false
+          DataId: !Ref wafrSQLiSet
+
+## --
+## WebACL containing the above rules evaluated in-order
+  wafrOwaspACL:
+    Type: AWS::WAFRegional::WebACL
+    Properties:
+      MetricName: 'WAFTstingowaspacl'
+      Name: 'WAFTsting-owasp-acl'
+      DefaultAction:
+        Type: ALLOW
+      Rules:
+        - Action:
+            Type: "BLOCK"
+          Priority: 10
+          RuleId: !Ref wafrSQLiRule
+
+  MyWebACLAssociation:
+    Type: "AWS::WAFRegional::WebACLAssociation"
+    Properties:
+      ResourceArn:
+        Ref: WAFTstingALB
+      WebACLId:
+        Ref: wafrOwaspACL
+

@@ -1,0 +1,10 @@
+.DS_Store
+*~
+*#
+.#*
+\#*#
+.*.sw[a-z]
+*.un~
+tags
+bypass/alb.url
+
