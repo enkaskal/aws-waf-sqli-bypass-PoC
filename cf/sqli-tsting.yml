@@ -195,7 +195,7 @@ Resources:
             - Ref: WAFTstingSecurityGroupWebgoat
           SubnetId:
             Ref: WAFTstingPubSubnetC
-      UserData: 'IyEvYmluL2Jhc2gKc3VkbyBhcHQtZ2V0IHVwZGF0ZSBzdWRvIGFwdC1nZXQgfHwgdHJ1ZQpzdWRvIERFQklBTl9GUk9OVEVORD1ub25pbnRlcmFjdGl2ZSBhcHQtZ2V0IGluc3RhbGwgLXkgZG9ja2VyLmlvCnN1ZG8gZG9ja2VyIHJ1biAtZCAtLW5hbWUgd2ViZ29hdCAtcCA4MDo4MDgwIHdlYmdvYXQvd2ViZ29hdC03LjEK'
+      UserData: 'IyEvYmluL2Jhc2gKc3VkbyBhcHQtZ2V0IHVwZGF0ZQpzdWRvIERFQklBTl9GUk9OVEVORD1ub25pbnRlcmFjdGl2ZSBhcHQtZ2V0IGluc3RhbGwgLXkgZG9ja2VyLmlvCnN1ZG8gZG9ja2VyIHJ1biAtZCAtLW5hbWUgd2ViZ29hdCAtcCA4MDo4MDgwIHdlYmdvYXQvd2ViZ29hdC03LjEK'
 
   WAFTstingALB:
     Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
@@ -253,37 +253,8 @@ Resources:
       Name: 'waf-tsting-detect-sqli'
       SqlInjectionMatchTuples:
         - FieldToMatch:
-            Type: URI
-          TextTransformation: URL_DECODE
-        - FieldToMatch:
-            Type: URI
-          TextTransformation: HTML_ENTITY_DECODE
-        - FieldToMatch:
-            Type: QUERY_STRING
-          TextTransformation: URL_DECODE
-        - FieldToMatch:
-            Type: QUERY_STRING
-          TextTransformation: HTML_ENTITY_DECODE
-        - FieldToMatch:
-            Type: QUERY_STRING
-          TextTransformation: CMD_LINE
-        - FieldToMatch:
-            Type: BODY
-          TextTransformation: URL_DECODE
-        - FieldToMatch:
-            Type: BODY
-          TextTransformation: HTML_ENTITY_DECODE
-        - FieldToMatch:
             Type: BODY
           TextTransformation: CMD_LINE
-        - FieldToMatch:
-            Type: HEADER
-            Data: cookie
-          TextTransformation: URL_DECODE
-        - FieldToMatch:
-            Type: HEADER
-            Data: cookie
-          TextTransformation: HTML_ENTITY_DECODE
   wafrSQLiRule:
     Type: AWS::WAFRegional::Rule
     Properties:
