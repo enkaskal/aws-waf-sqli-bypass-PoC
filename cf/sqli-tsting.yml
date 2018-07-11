@@ -27,6 +27,18 @@ Parameters:
     Type: String
     Description: The WAN IP that your (the operator) requests will be connecting/attacking from
 
+## ::MAPPINGS::
+## Template (region) mappings
+
+Mappings:
+  RegionMap:
+    us-west-2:
+      'ami': 'ami-a3ebbfdb'
+    us-east-2:
+      'ami': 'ami-7d132e18'
+    ap-southeast-2:
+      'ami': 'ami-f75a8195'
+
 ## ::RESOURCES::
 ## Resources used in this solution
 Resources:
@@ -83,7 +95,7 @@ Resources:
       VpcId:
         Ref: WAFTstingVPC
       CidrBlock: 192.168.0.0/24
-      AvailabilityZone: "us-west-2a"
+      AvailabilityZone: !Join ['', [!Ref 'AWS::Region', 'a']]
       MapPublicIpOnLaunch: "true"
       Tags:
       - Key: Name
@@ -95,7 +107,7 @@ Resources:
       VpcId:
         Ref: WAFTstingVPC
       CidrBlock: 192.168.1.0/24
-      AvailabilityZone: "us-west-2c"
+      AvailabilityZone: !Join ['', [!Ref 'AWS::Region', 'c']]
       MapPublicIpOnLaunch: "true"
       Tags:
       - Key: Name
@@ -174,7 +186,7 @@ Resources:
     Type: "AWS::EC2::Instance"
     DependsOn: WAFTstingRoutePub
     Properties:
-      ImageId: 'ami-25cf1c5d'
+      ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', ami]
       InstanceType: 't2.medium'
       NetworkInterfaces:
         - AssociatePublicIpAddress: 'true'
