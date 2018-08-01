@@ -182,7 +182,7 @@ Resources:
         ToPort: '0'
         CidrIp: 0.0.0.0/0
 
-  Webgoat:
+  WebgoatInstance:
     Type: "AWS::EC2::Instance"
     DependsOn: WAFTstingRoutePub
     Properties:
@@ -240,7 +240,7 @@ Resources:
           Value: WAFTstingTargetGroup
       Targets:
         - Id:
-            Ref: Webgoat
+            Ref: WebgoatInstance
           Port: 80
 
 ## 1.
